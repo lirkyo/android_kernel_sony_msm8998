@@ -1,0 +1,38 @@
+name: Build with KernelSU
+
+on:
+  push:
+    branches:
+      - lineage-20
+  workflow_dispatch: 
+
+jobs:
+  build:
+    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout kernel source
+      uses: actions/checkout@v2
+    - name: Download KernelSU sources
+      #run: |
+      #  curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -
+      run: |
+        git clone https://github.com/tiann/KernelSU
+        bash ./KernelSU/kernel/setup.sh
+        sed -i "s/^KSU_GIT_VERSION.*/KSU_GIT_VERSION := $(cd KernelSU; git rev-list --count HEAD)/" ./KernelSU/kernel/Makefile
+        
+    - name: Android kernel build
+      uses: lemniskett/android-kernel-actions@master
+      id: build
+      env:
+        NAME: Maple
+      with:
+        arch: arm64
+        compiler: clang/14
+        defconfig: lineage-msm8998-yoshino-maple_dsds_defconfig
+        image: Image.gz-dtb
+    - name: Deliver KernelInfo
+      uses: actions/upload-artifact@v2
+      with:
+        name: Kernel
+        path: ./out/arch/arm64/boot
